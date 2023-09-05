@@ -13,7 +13,7 @@ class EDUSegmenter(object):
 
     def __init__(self, cache_dir):
 
-        segment_path_to_exist = os.path.join(cache_dir, "segementer")
+        segment_path_to_exist = os.path.join(cache_dir, "segmenter")
         os.makedirs(segment_path_to_exist, exist_ok=True)
         if not os.path.exists(os.path.join(segment_path_to_exist, "config.json")):
             segmenter_config = RstPointerSegmenterConfig.from_pretrained(

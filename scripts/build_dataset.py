@@ -2,7 +2,7 @@
     :author: Jinfen Li
     :url: https://github.com/JinfenLi
 """
-import argparse, json, math, os, sys, random, logging
+import argparse, random, logging
 import collections
 import pickle
 from collections import defaultdict as ddict
@@ -10,26 +10,17 @@ import numpy as np
 import torch
 from tqdm import tqdm
 from transformers import AutoTokenizer
-
 import os
-
 from rst_parser.utils.rst_tree.edu_segmenter import EDUSegmenter
 from rst_parser.utils.rst_tree.processor import RSTPreprocessor
 from rst_parser.utils.rst_tree.data_utils import save_datadict
 
-# from rst_parser.utils.rst_tree.tree import RstTree
-
-# load_dotenv(override=True)
 logging.basicConfig(level=logging.DEBUG, format='%(relativeCreated)6d %(threadName)s %(message)s')
 logger = logging.getLogger(__name__)
 
-# import pyrootutils
-# pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
-from rst_parser.utils.data import dataset_info, data_keys
-# from ..rst_parser.utils.sentiTree.data_utils import get_CoreNLPClient, annotate_text, sentiment_tree
-# from ..rst_parser.utils.utils import update_dataset_dict, transform_data
 
-# os.environ["CORENLP_HOME"] = os.environ.get("CORENLP_HOME")
+from rst_parser.utils.data import dataset_info, data_keys
+
 
 def set_random_seed(seed):
     random.seed(seed)
@@ -59,14 +50,12 @@ def main():
     if args.dataset != 'new_data':
 
         max_length = dataset_info[args.dataset]['max_length'][args.arch]
-        num_special_tokens = dataset_info[args.dataset]['num_special_tokens']
     else:
         args.split = 'test'
         max_length = 20
-        num_special_tokens = 2
 
     tokenizer = AutoTokenizer.from_pretrained(args.arch, strip_accents=False)
-    preprocessor = RstPreprocessor(tokenizer, max_length)
+    preprocessor = RSTPreprocessor(tokenizer, max_length)
     data_path = os.path.join(args.data_dir, args.dataset, args.arch, args.split)
 
     if not os.path.exists(data_path):
@@ -95,42 +84,33 @@ def main():
                 feature_dict = preprocessor.construct_training_features(idx, action_list, span_list, relation_list, nuclearity_list, edu_texts)
                 for key in data_keys:
                     dataset_dict[key].append(feature_dict[key])
-                # binary_tree = preprocessor.binarize_tree(tree)
-                # node_list = []
-                # action_list = []
-                # span_list = []
-                # relation_list = []
-                # nuclearity_list = []
-                # node_list, action_list, span_list, relation_list, nuclearity_list = preprocessor.postorder_DFT(binary_tree, node_list, action_list, span_list, relation_list, nuclearity_list)
 
-                # input_ids, hashtag_inputs, offset_mapping = transform_data(tokenizer, hashtag_dict, text, max_length)
-                # dataset_dict = update_dataset_dict(idx, dataset_dict, input_ids, hashtag_inputs, max_length, tokenizer, text, offset_mapping)
-
-
-        # datadict
-    #     for idx in tqdm(range(0, num_examples), desc=f'Building {args.split} dataset'):
-    #         text = f'{dataset[idx]["Tweet"]}'
-    #         label = [int(dataset[idx][x]) for x in dataset_info[args.dataset]['classes']]
-    #         text = preprocess_dataset(text)
-    #         input_ids, hashtag_inputs, offset_mapping = transform_data(tokenizer, hashtag_dict, text, max_length)
-    #         dataset_dict = update_dataset_dict(idx, dataset_dict, input_ids, hashtag_inputs, max_length, tokenizer, text, offset_mapping,
-    #                                            label=label)
-    #     if args.use_senti_tree:
-    #         dataset_dict['tree'] = sentiment_tree(dataset_dict['truncated_texts'],
-    #                                            args.num_samples if args.num_samples else num_examples,
-    #                                            dataset_dict['offsets'],
-    #                                            max_length)
-    #
     elif args.dataset == 'new_data':
         with open("data/new_data/txt_files/doc.txt", 'r') as f:
             doc = f.read()
-        segmenter = EDUSegmenter(args.seg_model, "cuda" if torch.cuda.is_available() else "cpu")
-        edus = segmenter.segment(doc)
-        preprocessor = RstPreprocessor(tokenizer, max_length)
-        input_ids, attention_mask = preprocessor.process_edus(edus)
-        dataset_dict['item_idx'].append(0)
-        dataset_dict['edu_input_ids'].append(input_ids)
-        dataset_dict['edu_attention_mask'].append(attention_mask)
+        cache_dir = os.path.join("../rst_parser", "segmenter")
+        edu_segmenter = EDUSegmenter(cache_dir)
+        tokenized_sentences, end_boundaries = edu_segmenter([doc])
+        rst_preprocessor = RSTPreprocessor(tokenizer, max_length)
+        for i, doc in enumerate([doc]):
+            sentence = tokenized_sentences[i]
+            boundaries = end_boundaries[i]
+            cur_start = 0
+            edus = []
+            for b in boundaries:
+                edus.append(" ".join(sentence[cur_start: b + 1]))
+                cur_start = b + 1
+
+            if len(edus) < 2:
+                raise ValueError(f"Document {i} has less than 2 EDUs")
+            features = collections.defaultdict(list)
+            for edu in edus:
+                input_ids, attention_mask = rst_preprocessor.process_edus(edu)
+                features['edu_input_ids'].append(input_ids)
+                features['edu_attention_masks'].append(attention_mask)
+            dataset_dict['item_idx'].append(i)
+            dataset_dict['edu_input_ids'].append(features['edu_input_ids'])
+            dataset_dict['edu_attention_masks'].append(features['edu_attention_masks'])
 
     save_datadict(data_path, dataset_dict, args.split, args.num_samples, args.seed)
 

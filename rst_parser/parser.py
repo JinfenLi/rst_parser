@@ -17,6 +17,7 @@ from .utils.rst_tree.edu_segmenter import EDUSegmenter
 from .utils.rst_tree.processor import RSTPreprocessor, RSTPostprocessor
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 cache_dir = os.path.join(os.path.dirname(__file__), f"model_dependencies")
 
 def get_configuration():
