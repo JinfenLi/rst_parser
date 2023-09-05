@@ -1,0 +1,29 @@
+_target_: rst_parser.model.rst_model.RSTModel
+
+defaults:
+  - optimizer: adamw
+  - scheduler: linear_with_warmup
+
+
+arch: bert-base-uncased
+dataset: ${data.dataset}
+neg_weight: 1
+
+num_freeze_layers: 0
+freeze_epochs: -1
+
+save_outputs: ${training.save_outputs}
+exp_id: null
+
+measure_attrs_runtime: False
+
+max_length: 20
+glove_file: https://embs.s3.us-east-2.amazonaws.com/glove.pkl
+
+blstm_hidden_size: 200
+rnn_layers: 1
+dropout: 0.2
+
+num_action_classes: 2
+num_nuclearity_classes: 3
+num_relation_classes: 18

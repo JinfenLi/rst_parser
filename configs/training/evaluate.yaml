@@ -1,0 +1,8 @@
+evaluate_ckpt: True
+finetune_ckpt: False
+save_outputs: True
+ckpt_path: epoch=0-step=1.ckpt
+eval_splits: 'test'   # comma separated (no space). E.g., train,dev,test
+train_shuffle: False
+exp_id: rst_dt_04_09_2023_d9710f07
+patience: null
