@@ -1,6 +1,7 @@
 # python==3.9.16 (conda create -n rst_env python=3.9.16)
 # conda install -c "nvidia/label/cuda-11.8.0" cuda-toolkit
 # conda install pytorch torchvision pytorch-cuda=11.8 -c pytorch -c nvidia
+allennlp==2.10.1
 hydra-core==1.3.2
 hydra-colorlog==1.2.0
 lightning==2.0.7

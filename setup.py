@@ -22,7 +22,7 @@ setup(
     ],
     url="https://github.com/JinfenLi/rst_parser",
     license="MIT",
-    install_requires=["lightning>=2","torch>=2",
+    install_requires=["allennlp", "lightning>=2","torch>=2",
                       "numpy", "pandas", "rich", "spacy", "torchmetrics>=1",
                       "transformers==4.31.0"],
     packages=find_packages(),

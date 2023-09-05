@@ -23,22 +23,16 @@ If Multi-EmoBERT is helpful for your research, please consider citing our paper:
 ## Usage via Pip Package
 install pip package
 ```
-<<<<<<< HEAD
 pip install rst-parser
-=======
-pip install multi-emotion==0.1.12
->>>>>>> 25ea6cf699d92abc2347bbf99f7400ef1bed2599
+
 ```
 use pip package
 ```
 from rst_parser import rst_parser
 tree_results, dis_results = rst_parser.parse(["Thumbs began to be troublesome about 4 months ago and I made an appointment with the best hand surgeon in the Valley to see if my working activities were the problem."])
 ```
-<<<<<<< HEAD
+
 tree_results explanation
-=======
-preview result
->>>>>>> 25ea6cf699d92abc2347bbf99f7400ef1bed2599
 ```
 each tree in the tree_results is the binary tree with the following node attributes
     text # text of an EDU
