@@ -4,15 +4,20 @@
 """
 import collections
 from typing import List, Union
+
+import numpy as np
+
 from rst_parser.utils.rst_tree.tree import RstTree, SpanNode
 from rst_parser.utils.data import sub_mainclass_dict, nuc_dict, main_subclass_dict
-
+import nltk
+from allennlp.modules.elmo import batch_to_ids
 
 class RSTPreprocessor(object):
 
-    def __init__(self, tokenizer, max_length=128):
+    def __init__(self, tokenizer, glove_dict, max_length=60):
 
         self.tokenizer = tokenizer
+        self.glove_dict = glove_dict
         self.max_length = max_length
 
 
@@ -45,9 +50,11 @@ class RSTPreprocessor(object):
         features = collections.defaultdict(list)
         features['item_idx'] = item_idx
         for text in edu_texts:
-            input_ids, attention_mask = self.process_edus(text)
+            input_ids, attention_mask, glove_embs, character_ids = self.process_edus(text)
             features['edu_input_ids'].append(input_ids)
             features['edu_attention_masks'].append(attention_mask)
+            features['glove_embs'].append(glove_embs)
+            features['character_ids'].append(character_ids)
 
         features['spans'] = span_list
         features['actions'] = [-1 if a is None else (0 if a == 'Shift' else 1) for a in action_list]
@@ -72,7 +79,24 @@ class RSTPreprocessor(object):
             input_ids = input_ids + [self.tokenizer.pad_token_id] * pad_length
             attention_masks = attention_masks + [0] * pad_length
 
-        return input_ids, attention_masks
+        tokens = nltk.word_tokenize(text)[: self.max_length]
+        glove_embs = []
+
+        for token in tokens:
+            glove_embs.append(self.glove_dict.get(token, np.random.normal(-1, 1, size=300)).tolist())
+        while len(glove_embs) < self.max_length:
+            glove_embs.append([float(0)] * 300)
+        # glove_embs = torch.tensor(glove_embs).float()
+
+        if len(tokens) < self.max_length:
+            pad_length = self.max_length - len(tokens)
+            tokens = tokens + [self.tokenizer.pad_token] * pad_length
+        # elmo embedding
+        character_ids = batch_to_ids([tokens])[0].tolist()
+
+
+
+        return input_ids, attention_masks, glove_embs, character_ids
 
 
 

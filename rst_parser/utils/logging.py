@@ -53,15 +53,17 @@ def log_data_to_model(model_class, data, data_name, data_type, suffix, split, re
 
 def log_step_losses(model_class, loss_dict, ret_dict, split):
     ret_dict = log_data_to_model(model_class, loss_dict['loss'], 'total', 'loss', 'step', split, ret_dict, detach_data=False)
+    for key in ['action_loss', 'nuclearity_loss', 'relation_loss']:
+        ret_dict = log_data_to_model(model_class, loss_dict[key], key, 'loss', 'step', split, ret_dict)
     return ret_dict
 
-# def log_step_metrics(model_class, ret_dict, split):
-#     predictions = ret_dict['predictions']
-#     targets = ret_dict['targets']
-#     ret_dict = get_step_metrics(predictions, targets, model_class.perf_metrics)
-#     for key in metric_keys:
-#         ret_dict = log_data_to_model(model_class, ret_dict[key], key, 'metric', 'step', split, ret_dict)
-#     return ret_dict
+def log_step_metrics(model_class, metric_dict, split):
+    # predictions = ret_dict['predictions']
+    # targets = ret_dict['targets']
+    # ret_dict = get_step_metrics(predictions, targets, model_class.perf_metrics)
+    for key in metric_keys:
+        metric_dict = log_data_to_model(model_class, metric_dict[key], key, 'metric', 'step', split, metric_dict)
+    return metric_dict
 
 def log_epoch_losses(model_class, outputs, split):
     loss = outputs['loss'].mean()

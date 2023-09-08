@@ -1,9 +1,0 @@
-_target_: allennlp.modules.elmo.Elmo
-_partial_: true
-
-weight_file: "https://allennlp.s3.amazonaws.com/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_weights_PubMed_only.hdf5"
-options_file: "https://allennlp.s3.amazonaws.com/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_options_PubMed_only.json"
-do_layer_norm: false
-dropout: 0.3
-requires_grad: false
-num_output_representations: 3

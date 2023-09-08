@@ -1,7 +1,11 @@
 import collections
+import logging
 import os
+import pickle
 
+import allennlp
 import torch
+from allennlp.modules import Elmo
 from torch import nn
 from torch.utils.data import DataLoader
 
@@ -9,20 +13,20 @@ from transformers import AutoModel, AutoTokenizer
 from .base_model import BaseModel
 from ..data.data import EDUDataset
 from ..utils.losses import calc_loss
-from ..utils.metrics import init_best_metrics, init_perf_metrics
+from ..utils.metrics import init_best_metrics, init_perf_metrics, calc_f1
 from ..utils.optim import setup_optimizer_params, setup_scheduler, freeze_layers
-from ..utils.logging import log_step_losses, log_epoch_losses, log_epoch_metrics
+from ..utils.logging import log_step_losses, log_epoch_losses, log_epoch_metrics, log_step_metrics
 from ..utils.data import action_dict
 
-
+cache_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), f"model_dependencies")
 class RSTModel(BaseModel):
     def __init__(self, arch: str = "bert-base-uncased", max_length: int = 20, num_action_classes: int = 3,
                  num_nuclearity_classes: int = 3, num_relation_classes: int = 18, blstm_hidden_size: int = 100, rnn_layers: int = 1,
-                 dropout: float = 0.0,
+                 dropout: float = 0.0, elmo_dim: int = 256, glove_dim: int = 300,
                  dataset: str = None, num_freeze_layers: int = 0, freeze_epochs=-1, neg_weight=1,
                  save_outputs: str = None, exp_id: str = None,
                  measure_attrs_runtime: bool = False, optimizer: torch.optim.Optimizer = None,
-                 scheduler: torch.optim.lr_scheduler = None, **kwargs):
+                 scheduler: torch.optim.lr_scheduler = None, embedding: allennlp.modules.Elmo = None, **kwargs):
 
 
         super().__init__()
@@ -45,9 +49,29 @@ class RSTModel(BaseModel):
         self.tokenizer = AutoTokenizer.from_pretrained(arch)
         self.edu_encoder = AutoModel.from_pretrained(arch)
 
+        if not os.path.exists(os.path.join(cache_dir, 'elmo', 'weight.hdf5')):
+            logging.info("Downloading Elmo model...")
+            os.makedirs(os.path.join(cache_dir, 'elmo'), exist_ok=True)
+            torch.hub.download_url_to_file(self.hparams.embedding.keywords['weight_file'], os.path.join(cache_dir, 'elmo', 'weight.hdf5'))
+            torch.hub.download_url_to_file(self.hparams.embedding.keywords['options_file'], os.path.join(cache_dir, 'elmo', 'options.json'))
+        options_file = os.path.join(cache_dir, 'elmo', 'options.json')
+        weight_file = os.path.join(cache_dir, 'elmo', 'weight.hdf5')
+        # with open(os.path.join(cache_dir, 'glove.pkl'), 'rb') as f:
+        #     self.glove_dict = pickle.load(f)
+        num_output_representations = embedding.keywords['num_output_representations']
+        dropout = embedding.keywords['dropout']
+        requires_grad = embedding.keywords['requires_grad']
+        do_layer_norm = embedding.keywords['do_layer_norm']
+        self.elmo = Elmo(options_file=options_file, weight_file=weight_file, num_output_representations=num_output_representations,
+                         dropout=dropout, requires_grad=requires_grad, do_layer_norm=do_layer_norm)
+
+
         # span representation
-        self.edu_bi_encoder = nn.LSTM(self.edu_encoder.config.hidden_size, blstm_hidden_size, rnn_layers,
-                                    batch_first=True,  dropout=(0 if rnn_layers == 1 else dropout), bidirectional=True)
+        # self.edu_bi_encoder = nn.LSTM(self.edu_encoder.config.hidden_size, blstm_hidden_size, rnn_layers,
+        #                             batch_first=True,  dropout=(0 if rnn_layers == 1 else dropout), bidirectional=True)
+
+        self.edu_bi_encoder = nn.LSTM(elmo_dim+glove_dim, blstm_hidden_size, rnn_layers,
+                                      batch_first=True, dropout=(0 if rnn_layers == 1 else dropout), bidirectional=True)
         self.edu_bi_header = nn.Linear(blstm_hidden_size * 2, blstm_hidden_size)
 
         # action model
@@ -90,7 +114,7 @@ class RSTModel(BaseModel):
 
         self.measure_attrs_runtime = measure_attrs_runtime
 
-    from torch.utils.data import DataLoader
+
 
     # Define a custom collate function for dynamic batching
     def collate_fn(self, batch):
@@ -99,28 +123,61 @@ class RSTModel(BaseModel):
         inputs, attention_masks = zip(*batch)
         return inputs, attention_masks
 
-    def edu_forward(self, inputs, attention_mask, mini_batch_size):
-        # split inputs and attention_mask into mini-batch
+    # def edu_forward(self, inputs, attention_mask, mini_batch_size):
+    #     # split inputs and attention_mask into mini-batch
+    #
+    #     if mini_batch_size:
+    #         # total_mini_batches = len(inputs) // mini_batch_size
+    #         dataset = {'input_ids': inputs, 'attention_mask': attention_mask}
+    #         dataset = EDUDataset(dataset, mini_batch_size)
+    #         data_loader = DataLoader(dataset, batch_size=mini_batch_size, collate_fn=dataset.collater)
+    #
+    #         # inputs = inputs.split(mini_batch_size)
+    #         # attention_mask = attention_mask.split(mini_batch_size)
+    #         enc_batches = []
+    #         for batch in data_loader:
+    #             # Determine the starting and ending indices for the current mini-batch
+    #             # start_idx = batch_idx * mini_batch_size
+    #             # end_idx = (batch_idx + 1) * mini_batch_size
+    #             # print(inputs[start_idx:end_idx].shape)
+    #             # print(attention_mask[start_idx:end_idx].shape)
+    #             enc_batches.append(self.edu_encoder(input_ids=batch['input_ids'], attention_mask=batch['attention_mask']).pooler_output)
+    #         enc = torch.cat(enc_batches, dim=0)
+    #     else:
+    #         enc = self.edu_encoder(input_ids=inputs, attention_mask=attention_mask).pooler_output
+    #     output, (h_n, c_n) = self.edu_bi_encoder(enc)
+    #     f_emb = output[:, :self.edu_bi_encoder.hidden_size]
+    #     b_emb = output[:, self.edu_bi_encoder.hidden_size:]
+    #     return f_emb, b_emb
+
+    def edu_forward(self, inputs, attention_mask, glove_embs, character_ids, mini_batch_size):
+
+        # split EDUs into mini-batch
 
         if mini_batch_size:
             # total_mini_batches = len(inputs) // mini_batch_size
-            dataset = {'input_ids': inputs, 'attention_mask': attention_mask}
+            dataset = {'input_ids': inputs, 'attention_mask': attention_mask, 'glove_embs': glove_embs, 'character_ids': character_ids}
             dataset = EDUDataset(dataset, mini_batch_size)
             data_loader = DataLoader(dataset, batch_size=mini_batch_size, collate_fn=dataset.collater)
 
-            # inputs = inputs.split(mini_batch_size)
-            # attention_mask = attention_mask.split(mini_batch_size)
             enc_batches = []
+
             for batch in data_loader:
                 # Determine the starting and ending indices for the current mini-batch
-                # start_idx = batch_idx * mini_batch_size
-                # end_idx = (batch_idx + 1) * mini_batch_size
-                # print(inputs[start_idx:end_idx].shape)
-                # print(attention_mask[start_idx:end_idx].shape)
-                enc_batches.append(self.edu_encoder(input_ids=batch['input_ids'], attention_mask=batch['attention_mask']).pooler_output)
+                elmo_embs = self.elmo(batch['character_ids'])['elmo_representations']
+                elmo_embs = (elmo_embs[0]+elmo_embs[1]+elmo_embs[2])/3
+                glove_embs = batch['glove_embs'].mean(dim=1)
+                elmo_embs = elmo_embs.mean(dim=1)
+                edu_embs = torch.cat((glove_embs, elmo_embs), dim=1)
+                enc_batches.append(edu_embs)
             enc = torch.cat(enc_batches, dim=0)
         else:
-            enc = self.edu_encoder(input_ids=inputs, attention_mask=attention_mask).pooler_output
+            elmo_embs = self.elmo(character_ids)['elmo_representations']
+            elmo_embs = (elmo_embs[0]+elmo_embs[1]+elmo_embs[2])/3
+            glove_embs = glove_embs.mean(dim=1)
+            elmo_embs = elmo_embs.mean(dim=1)
+            edu_embs = torch.cat((glove_embs, elmo_embs), dim=1)
+            enc = edu_embs
         output, (h_n, c_n) = self.edu_bi_encoder(enc)
         f_emb = output[:, :self.edu_bi_encoder.hidden_size]
         b_emb = output[:, self.edu_bi_encoder.hidden_size:]
@@ -164,6 +221,8 @@ class RSTModel(BaseModel):
 
         input_ids = batch['input_ids'].squeeze(0)
         attn_mask = batch['attention_mask'].squeeze(0)
+        character_ids = batch['character_ids'].squeeze(0)
+        glove_embs = batch['glove_embs'].squeeze(0)
         spans = batch['spans'].squeeze(0) if batch['spans'] is not None else None
         actions = batch['actions'].squeeze(0) if batch['actions'] is not None else None
         forms = batch['forms'].squeeze(0) if batch['forms'] is not None else None
@@ -173,7 +232,7 @@ class RSTModel(BaseModel):
         if split == 'train':
             assert split == eval_split
 
-        f_embs, b_embs = self.edu_forward(input_ids, attn_mask, mini_batch_size)
+        f_embs, b_embs = self.edu_forward(input_ids, attn_mask, glove_embs, character_ids, mini_batch_size)
 
 
         ret_dict, loss_dict,  = {}, {}
@@ -231,9 +290,12 @@ class RSTModel(BaseModel):
                 else:
                     processing_spans.append((cur_eid, cur_eid))
                     cur_eid += 1
-            loss_dict['loss'] = (torch.stack(step_loss_dict['action']).mean() +
-                                torch.stack(step_loss_dict['nuclearity']).mean() +
-                                torch.stack(step_loss_dict['relation']).mean()) / 3
+            loss_dict['loss'] = torch.stack(step_loss_dict['action']).mean() +\
+                                torch.stack(step_loss_dict['nuclearity']).mean() +\
+                                torch.stack(step_loss_dict['relation']).mean()
+            loss_dict['action_loss'] = torch.stack(step_loss_dict['action']).mean()
+            loss_dict['nuclearity_loss'] = torch.stack(step_loss_dict['nuclearity']).mean()
+            loss_dict['relation_loss'] = torch.stack(step_loss_dict['relation']).mean()
             # Log step losses
             ret_dict = log_step_losses(self, loss_dict, ret_dict, eval_split)
 
@@ -280,8 +342,9 @@ class RSTModel(BaseModel):
         ret_dict['predictions'] = torch.tensor(predictions).detach()
         ret_dict['eval_split'] = eval_split
         ret_dict['input_ids'] = input_ids.detach()
-        # if spans is not None:
-        #     log_step_metrics(self, ret_dict, split)  # Log step metrics
+        if spans is not None:
+            metric_dict = calc_f1(ret_dict['predictions'], ret_dict['targets'])
+            log_step_metrics(self, metric_dict, split)  # Log step metrics
         return ret_dict
 
     def aggregate_epoch(self, outputs, split):

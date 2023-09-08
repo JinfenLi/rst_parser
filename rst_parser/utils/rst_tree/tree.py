@@ -166,9 +166,9 @@ class RstTree(object):
         if tree.rnode is not None:
             self.postorder_DFT(tree.rnode, node_list, action_list, span_list, relation_list, nuclearity_list, edu_texts)
         if tree.lnode is not None and tree.rnode is not None:
-            sat_node = tree.lnode if tree.lnode.own_nuc == 'Satellite' else tree.rnode
             tree.nuc_label = tree.lnode.own_nuc + tree.rnode.own_nuc
-            tree.rel_label = sat_node.own_rel
+            tree.rel_label = tree.lnode.own_rel if tree.lnode.own_rel != 'span' else tree.rnode.own_rel
+
         node_list.append(tree)
         action_list.append("Shift" if tree.edu_span[0] == tree.edu_span[1] else "Reduce")
         span_list.append(tree.edu_span)

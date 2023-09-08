@@ -3,6 +3,8 @@ _target_: rst_parser.model.rst_model.RSTModel
 defaults:
   - optimizer: adamw
   - scheduler: linear_with_warmup
+  - embedding: elmo
+
 
 
 arch: bert-base-uncased
@@ -18,7 +20,9 @@ exp_id: null
 measure_attrs_runtime: False
 
 max_length: 20
-glove_file: https://embs.s3.us-east-2.amazonaws.com/glove.pkl
+#glove_file: https://embs.s3.us-east-2.amazonaws.com/glove.pkl
+elmo_dim: 256
+glove_dim: 300
 
 blstm_hidden_size: 200
 rnn_layers: 1

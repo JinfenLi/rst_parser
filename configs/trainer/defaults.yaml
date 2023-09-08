@@ -1,5 +1,6 @@
 _target_: lightning.pytorch.trainer.Trainer
 
+strategy: auto
 # default values for all trainer parameters
 #checkpoint_callback: True
 default_root_dir: null

@@ -128,13 +128,17 @@ class EDUDataset(Dataset):
         # item_idx = torch.LongTensor([self.data['item_idx'][idx]])
         input_ids = self.data['input_ids'][idx]
         attention_mask = self.data['attention_mask'][idx]
-        result_tuple = (input_ids, attention_mask)
+        glove_embs = self.data['glove_embs'][idx]
+        character_ids = self.data['character_ids'][idx]
+        result_tuple = (input_ids, attention_mask, glove_embs, character_ids)
         return result_tuple
     def collater(self, items):
         batch = {
             # 'item_idx': torch.cat([x[0] for x in items]),
             'input_ids': torch.stack([x[0] for x in items], dim=0),
             'attention_mask': torch.stack([x[1] for x in items], dim=0),
+            'glove_embs': torch.stack([x[2] for x in items], dim=0),
+            'character_ids': torch.stack([x[3] for x in items], dim=0),
             # 'split': self.split,
             # 'mini_batch_size': self.mini_batch_size,
         }
@@ -154,7 +158,9 @@ class TextClassificationDataset(Dataset):
         item_idx = torch.LongTensor([self.data['item_idx'][idx]])
         input_ids = torch.LongTensor(self.data['edu_input_ids'][idx])
         attention_mask = torch.LongTensor(self.data['edu_attention_masks'][idx])
-        result_tuple = (item_idx, input_ids, attention_mask)
+        glove_embs = torch.FloatTensor(self.data['glove_embs'][idx])
+        character_ids = torch.LongTensor(self.data['character_ids'][idx])
+        result_tuple = (item_idx, input_ids, attention_mask, glove_embs, character_ids)
 
         if 'spans' in self.data:
             spans = torch.LongTensor([self.data['spans'][idx]])
@@ -169,10 +175,12 @@ class TextClassificationDataset(Dataset):
             'item_idx': torch.cat([x[0] for x in items]),
             'input_ids': torch.stack([x[1] for x in items], dim=0),
             'attention_mask': torch.stack([x[2] for x in items], dim=0),
-            'spans': torch.cat([x[3] for x in items]) if self.split != 'pred' else None,
-            'actions': torch.cat([x[4] for x in items]) if self.split != 'pred' else None,
-            'forms': torch.cat([x[5] for x in items]) if self.split != 'pred' else None,
-            'relations': torch.cat([x[6] for x in items]) if self.split != 'pred' else None,
+            'glove_embs': torch.stack([x[3] for x in items], dim=0),
+            'character_ids': torch.stack([x[4] for x in items], dim=0),
+            'spans': torch.cat([x[5] for x in items]) if self.split != 'pred' else None,
+            'actions': torch.cat([x[6] for x in items]) if self.split != 'pred' else None,
+            'forms': torch.cat([x[7] for x in items]) if self.split != 'pred' else None,
+            'relations': torch.cat([x[8] for x in items]) if self.split != 'pred' else None,
             'split': self.split,
             'mini_batch_size': self.mini_batch_size,
         }

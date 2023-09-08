@@ -11,15 +11,17 @@ import torch
 from tqdm import tqdm
 from transformers import AutoTokenizer
 import os
-from rst_parser.utils.rst_tree.edu_segmenter import EDUSegmenter
-from rst_parser.utils.rst_tree.processor import RSTPreprocessor
-from rst_parser.utils.rst_tree.data_utils import save_datadict
+import pyrootutils
+pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 
 logging.basicConfig(level=logging.DEBUG, format='%(relativeCreated)6d %(threadName)s %(message)s')
 logger = logging.getLogger(__name__)
 
 
 from rst_parser.utils.data import dataset_info, data_keys
+from rst_parser.utils.rst_tree.edu_segmenter import EDUSegmenter
+from rst_parser.utils.rst_tree.processor import RSTPreprocessor
+from rst_parser.utils.rst_tree.data_utils import save_datadict, get_glove_dict
 
 
 def set_random_seed(seed):
@@ -55,7 +57,8 @@ def main():
         max_length = 20
 
     tokenizer = AutoTokenizer.from_pretrained(args.arch, strip_accents=False)
-    preprocessor = RSTPreprocessor(tokenizer, max_length)
+    glove_dict = get_glove_dict()
+    preprocessor = RSTPreprocessor(tokenizer, glove_dict, max_length)
     data_path = os.path.join(args.data_dir, args.dataset, args.arch, args.split)
 
     if not os.path.exists(data_path):
@@ -72,11 +75,12 @@ def main():
             files = [files[idx] for idx in random_idx[:40]]
         elif args.split == 'train':
             files = [files[idx] for idx in random_idx[40:]]
-        assert num_examples <= len(files)
+        if num_examples is not None:
+            assert num_examples <= len(files)
         if num_examples is not None:
             files = random.sample(files, num_examples)
 
-        for idx, file in tqdm(enumerate(files), desc=f'Building {args.split} dataset'):
+        for idx, file in enumerate(tqdm(files, desc=f'Building {args.split} dataset')):
 
             with open(file, 'r') as f:
                 dis_str = f.read()
@@ -127,9 +131,9 @@ if __name__ == "__main__":
                         help='pretrained model name')
     parser.add_argument('--seg_model', type=str, default='bert_uncased', help='Segmentation model',
                         choices=['bert_uncased', 'bert_cased', 'bart'])
-    parser.add_argument('--split', type=str, default='dev', help='Dataset split', choices=['train', 'dev', 'test'])
+    parser.add_argument('--split', type=str, default='test', help='Dataset split', choices=['train', 'dev', 'test'])
     parser.add_argument('--stratified_sampling', type=bool, default=False, help='Whether to use stratified sampling')
-    parser.add_argument('--num_samples', type=int, default=2,
+    parser.add_argument('--num_samples', type=int, default=1,
                         help='Number of examples to sample. None means all available examples are used.')
     parser.add_argument('--seed', type=int, default=0, help='Random seed')
     args = parser.parse_args()

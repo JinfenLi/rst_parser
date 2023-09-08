@@ -3,14 +3,16 @@
     :url: https://github.com/JinfenLi
 """
 import json
+import logging
 import os
 import pickle
 import random
 from collections import Counter
 import numpy as np
+import torch
 from tqdm import tqdm
 
-
+cache_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'model_dependencies')
 
 def stratified_sampling(data, num_samples):
     num_instances = len(data)
@@ -59,3 +61,11 @@ def save_datadict(data_path, dataset_dict, split, num_samples, seed):
             filename = f'{key}.pkl' if num_samples is None else f'{key}_{num_samples}_{seed}.pkl'
             with open(os.path.join(data_path, filename), 'wb') as f:
                 pickle.dump(dataset_dict[key], f)
+
+def get_glove_dict():
+    if not os.path.exists(os.path.join(cache_dir, 'glove.pkl')):
+        logging.info("Downloading GloVe embeddings...")
+        torch.hub.download_url_to_file("https://embs.s3.us-east-2.amazonaws.com/glove.pkl", os.path.join(cache_dir, 'glove.pkl'))
+    with open(os.path.join(cache_dir, 'glove.pkl'), 'rb') as f:
+        glove_dict = pickle.load(f)
+    return glove_dict

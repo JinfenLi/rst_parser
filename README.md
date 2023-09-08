@@ -71,10 +71,10 @@ conda create -n emo_env python=3.9.16
 ```
 install packages via conda first and then via pip
 ```
-conda install -c "nvidia/label/cuda-11.8.0" cuda-toolkit
-conda install -c anaconda cudnn
-conda install pytorch torchvision pytorch-cuda=11.8 -c pytorch -c nvidia
 pip install -r requirements.txt
+conda install -c "nvidia/label/cuda-11.8.0" cuda-toolkit
+conda install pytorch torchvision pytorch-cuda=11.8 -c pytorch -c nvidia
+
 ```
 rename .env.example as .env and change the variable values in the file
 

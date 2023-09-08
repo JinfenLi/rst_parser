@@ -22,7 +22,7 @@ monitor_dict = {
     'rst_dt': 'dev_span_f1_metric_epoch'
 }
 
-data_keys = ['item_idx', 'edu_input_ids', 'edu_attention_masks', 'spans', 'actions', 'forms', 'relations']
+data_keys = ['item_idx', 'edu_input_ids', 'edu_attention_masks', 'spans', 'actions', 'forms', 'relations', 'glove_embs', 'character_ids']
 
 action_dict = {0: 'Shift', 1: 'Reduce'}
 
