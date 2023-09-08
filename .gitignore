@@ -166,3 +166,4 @@ configs/local/default.yaml
 #!save/best_model/checkpoints
 #!save/best_model/hydra
 #general_utils.py
+.neptune
