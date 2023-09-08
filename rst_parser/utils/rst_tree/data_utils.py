@@ -13,7 +13,7 @@ import torch
 from tqdm import tqdm
 
 cache_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'model_dependencies')
-
+os.makedirs(cache_dir, exist_ok=True)
 def stratified_sampling(data, num_samples):
     num_instances = len(data)
     assert num_samples < num_instances

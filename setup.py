@@ -24,7 +24,7 @@ setup(
     license="MIT",
     install_requires=["allennlp", "lightning>=2","torch>=2",
                       "numpy", "pandas", "rich", "spacy", "torchmetrics>=1",
-                      "transformers==4.31.0"],
+                      "transformers==4.31.0", "neptune>=1.0"],
     packages=find_packages(),
 
 

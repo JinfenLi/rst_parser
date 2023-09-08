@@ -8,7 +8,7 @@ import torch
 from allennlp.modules import Elmo
 from torch import nn
 from torch.utils.data import DataLoader
-
+import torch.nn.functional as F
 from transformers import AutoModel, AutoTokenizer
 from .base_model import BaseModel
 from ..data.data import EDUDataset
@@ -20,7 +20,7 @@ from ..utils.data import action_dict
 
 cache_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), f"model_dependencies")
 class RSTModel(BaseModel):
-    def __init__(self, arch: str = "bert-base-uncased", max_length: int = 20, num_action_classes: int = 3,
+    def __init__(self, arch: str = "bert-base-uncased", max_length: int = 60, num_action_classes: int = 3,
                  num_nuclearity_classes: int = 3, num_relation_classes: int = 18, blstm_hidden_size: int = 100, rnn_layers: int = 1,
                  dropout: float = 0.0, elmo_dim: int = 256, glove_dim: int = 300,
                  dataset: str = None, num_freeze_layers: int = 0, freeze_epochs=-1, neg_weight=1,
@@ -46,8 +46,8 @@ class RSTModel(BaseModel):
         self.register_buffer('empty_tensor', torch.LongTensor([]))
 
         # EDU representation
-        self.tokenizer = AutoTokenizer.from_pretrained(arch)
-        self.edu_encoder = AutoModel.from_pretrained(arch)
+        # self.tokenizer = AutoTokenizer.from_pretrained(arch)
+        # self.edu_encoder = AutoModel.from_pretrained(arch)
 
         if not os.path.exists(os.path.join(cache_dir, 'elmo', 'weight.hdf5')):
             logging.info("Downloading Elmo model...")
@@ -62,7 +62,7 @@ class RSTModel(BaseModel):
         dropout = embedding.keywords['dropout']
         requires_grad = embedding.keywords['requires_grad']
         do_layer_norm = embedding.keywords['do_layer_norm']
-        self.elmo = Elmo(options_file=options_file, weight_file=weight_file, num_output_representations=num_output_representations,
+        self.edu_encoder = Elmo(options_file=options_file, weight_file=weight_file, num_output_representations=num_output_representations,
                          dropout=dropout, requires_grad=requires_grad, do_layer_norm=do_layer_norm)
 
 
@@ -164,7 +164,7 @@ class RSTModel(BaseModel):
 
             for batch in data_loader:
                 # Determine the starting and ending indices for the current mini-batch
-                elmo_embs = self.elmo(batch['character_ids'])['elmo_representations']
+                elmo_embs = self.edu_encoder(batch['character_ids'])['elmo_representations']
                 elmo_embs = (elmo_embs[0]+elmo_embs[1]+elmo_embs[2])/3
                 glove_embs = batch['glove_embs'].mean(dim=1)
                 elmo_embs = elmo_embs.mean(dim=1)
@@ -172,7 +172,7 @@ class RSTModel(BaseModel):
                 enc_batches.append(edu_embs)
             enc = torch.cat(enc_batches, dim=0)
         else:
-            elmo_embs = self.elmo(character_ids)['elmo_representations']
+            elmo_embs = self.edu_encoder(character_ids)['elmo_representations']
             elmo_embs = (elmo_embs[0]+elmo_embs[1]+elmo_embs[2])/3
             glove_embs = glove_embs.mean(dim=1)
             elmo_embs = elmo_embs.mean(dim=1)
@@ -189,9 +189,9 @@ class RSTModel(BaseModel):
                            dim=0)
         right_emb = torch.cat((f_emb[end, :] - f_emb[cut, :], b_emb[cut, :] - b_emb[end, :]), dim=0)
         left_emb = self.action_left_encoder(left_emb)
-        # left_h = F.relu(left_h)
+        left_emb = F.relu(left_emb)
         right_emb = self.action_right_encoder(right_emb)
-        # right_h = F.relu(right_h)
+        right_emb = F.relu(right_emb)
         output = self.action_header(torch.cat((left_emb, right_emb), dim=0))
         return output
 
@@ -200,9 +200,9 @@ class RSTModel(BaseModel):
                            dim=0)
         right_emb = torch.cat((f_emb[end, :] - f_emb[cut, :], b_emb[cut, :] - b_emb[end, :]), dim=0)
         left_emb = self.nuclearity_left_encoder(left_emb)
-        # left_h = F.relu(left_h)
+        left_emb = F.relu(left_emb)
         right_emb = self.nuclearity_right_encoder(right_emb)
-        # right_h = F.relu(right_h)
+        right_emb = F.relu(right_emb)
         output = self.nuclearity_header(torch.cat((left_emb, right_emb), dim=0))
         return output
 
@@ -211,9 +211,9 @@ class RSTModel(BaseModel):
                            dim=0)
         right_emb = torch.cat((f_emb[end, :] - f_emb[cut, :], b_emb[cut, :] - b_emb[end, :]), dim=0)
         left_emb = self.relation_left_encoder(left_emb)
-        # left_h = F.relu(left_h)
+        left_emb = F.relu(left_emb)
         right_emb = self.relation_right_encoder(right_emb)
-        # right_h = F.relu(right_h)
+        right_emb = F.relu(right_emb)
         output = self.relation_header(torch.cat((left_emb, right_emb), dim=0))
         return output
 
@@ -273,13 +273,13 @@ class RSTModel(BaseModel):
                     if action:
 
                         nuc_logits = self.nuclearity_forward(max(0, start-1), end-1, cut-1, f_embs, b_embs)
-                        nuc_pred = nuc_logits.argmax(dim=0)
+                        nuc_pred = torch.argmax(F.softmax(nuc_logits, dim=0))
                         nuc_target = forms[cur_sid]
                         nuc_loss = calc_loss(nuc_logits, nuc_target)
                         step_loss_dict['nuclearity'].append(nuc_loss)
 
                         rel_logits = self.relation_forward(max(0, start-1), end-1, cut-1, f_embs, b_embs)
-                        rel_pred = rel_logits.argmax(dim=0)
+                        rel_pred = torch.argmax(F.softmax(rel_logits, dim=0))
                         rel_target = relations[cur_sid]
                         rel_loss = calc_loss(rel_logits, rel_target)
                         step_loss_dict['relation'].append(rel_loss)
@@ -309,9 +309,9 @@ class RSTModel(BaseModel):
                         cut = processing_spans[-2][1]
                         end = processing_spans[-1][1]
                         action_logits = self.action_forward(max(0, start-1), end-1, cut-1, f_embs, b_embs)
-                        pred_action = action_logits.argmax(dim=0)
+                        pred_action = torch.argmax(F.softmax(action_logits, dim=0))
 
-                        if end == max_id or action_dict[torch.argmax(pred_action).item()] == "Reduce":
+                        if end == max_id or action_dict[pred_action.item()] == "Reduce":
                             action = 1
                             processing_spans = processing_spans[:-2]
                             processing_spans.append((start, end))
@@ -324,8 +324,8 @@ class RSTModel(BaseModel):
                             nuc_logits = self.nuclearity_forward(max(0, start-1), end-1, cut-1, f_embs, b_embs)
                             rel_logits = self.relation_forward(max(0, start-1), end-1, cut-1, f_embs, b_embs)
 
-                            pred_nuclearity = nuc_logits.argmax(dim=0)
-                            pred_relation = rel_logits.argmax(dim=0)
+                            pred_nuclearity = torch.argmax(F.softmax(nuc_logits, dim=0))
+                            pred_relation = torch.argmax(F.softmax(rel_logits, dim=0))
                             predictions.append((start, end, pred_nuclearity, pred_relation))
 
                     else:

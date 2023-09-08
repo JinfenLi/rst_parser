@@ -1,11 +1,21 @@
 import getpass, socket
+import os
 from typing import Any, List
 import torch
 from lightning_utilities.core.rank_zero import rank_zero_only
-from lightning.pytorch.loggers import CSVLogger
+from lightning.pytorch.loggers import CSVLogger, NeptuneLogger
 from ..utils.metrics import get_step_metrics, get_epoch_metrics, metric_keys
 import logging
+from dotenv import load_dotenv
 
+load_dotenv(override=True)
+
+API_LIST = {
+    "neptune": {
+        'api-key': os.environ.get('NEPTUNE_API_TOKEN'),
+        'name': os.environ.get('NEPTUNE_NAME'),
+    },
+}
 
 
 log = logging.getLogger(__name__)
@@ -41,6 +51,37 @@ def get_csv_logger(
     return csv_logger
 
 
+def get_neptune_logger(
+    cfg, logger,
+    tag_attrs,
+    offline,
+):
+    neptune_api_key = API_LIST["neptune"]["api-key"]
+    name = API_LIST["neptune"]["name"]
+    # flatten cfg
+    # args_dict = {
+    #     **flatten_cfg(OmegaConf.to_object(cfg)),
+    #     "hostname": socket.gethostname()
+    # }
+    tags = list(tag_attrs)
+
+
+
+    neptune_logger = NeptuneLogger(
+        api_key=neptune_api_key,
+        project=name,
+        # name="Prediction model",
+        # params=args_dict,
+        tags=tags
+    )
+
+    try:
+        # for unknown reason, must access this field otherwise becomes None
+        print(neptune_logger.experiment)
+    except BaseException:
+        pass
+
+    return neptune_logger
 
 def log_data_to_model(model_class, data, data_name, data_type, suffix, split, ret_dict=None, detach_data=True):
 

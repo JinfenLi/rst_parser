@@ -92,12 +92,12 @@ def calc_f1(preds: Tensor, target: Tensor):
     rel_preds = torch.cat((preds[:, :2], preds[:, [3]]), dim=1)
     rel_target = torch.cat((target[:, :2], target[:, [3]]), dim=1)
 
-    span_precision = torch.sum(torch.tensor(span_preds == span_target).all(dim=1)) / len(preds)
-    span_recall = torch.sum(torch.tensor(span_preds == span_target).all(dim=1)) / len(target)
+    span_precision = torch.sum((span_preds == span_target).all(dim=1)) / len(preds)
+    span_recall = torch.sum((span_preds == span_target).all(dim=1)) / len(target)
     span_f1 = 2 * span_precision * span_recall / (span_precision + span_recall) if (span_precision + span_recall) > 0 else 0.0
 
-    nuc_precision = torch.sum(torch.tensor(nuc_preds == nuc_target).all(dim=1)) / len(preds)
-    nuc_recall = torch.sum(torch.tensor(nuc_preds == nuc_target).all(dim=1)) / len(target)
+    nuc_precision = torch.sum((nuc_preds == nuc_target).all(dim=1)) / len(preds)
+    nuc_recall = torch.sum((nuc_preds == nuc_target).all(dim=1)) / len(target)
     nuc_f1 = 2 * nuc_precision * nuc_recall / (nuc_precision + nuc_recall) if (nuc_precision + nuc_recall) > 0 else 0.0
 
     rel_precision = torch.sum((rel_preds == rel_target).all(dim=1)) / len(preds)

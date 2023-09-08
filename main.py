@@ -128,7 +128,7 @@ def build(cfg) -> Tuple[LightningDataModule, LightningModule, Trainer]:
     with open_dict(cfg):
         if (not (cfg.debug or cfg.logger.offline)) and cfg.logger.logger == "neptune":
             cfg.paths.save_dir = os.path.join(cfg.paths.save_dir,
-                                              f'{cfg.data.dataset}_{run_logger.experiment_id}')
+                                              f'{cfg.data.dataset}_{run_logger.version}')
 
     if not cfg.training.evaluate_ckpt:
 

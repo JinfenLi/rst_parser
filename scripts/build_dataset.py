@@ -133,7 +133,7 @@ if __name__ == "__main__":
                         choices=['bert_uncased', 'bert_cased', 'bart'])
     parser.add_argument('--split', type=str, default='test', help='Dataset split', choices=['train', 'dev', 'test'])
     parser.add_argument('--stratified_sampling', type=bool, default=False, help='Whether to use stratified sampling')
-    parser.add_argument('--num_samples', type=int, default=1,
+    parser.add_argument('--num_samples', type=int, default=None,
                         help='Number of examples to sample. None means all available examples are used.')
     parser.add_argument('--seed', type=int, default=0, help='Random seed')
     args = parser.parse_args()

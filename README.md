@@ -78,6 +78,12 @@ conda install pytorch torchvision pytorch-cuda=11.8 -c pytorch -c nvidia
 ```
 rename .env.example as .env and change the variable values in the file
 
+### Neptune
+Before running the code, you need to complete the following steps:
+1. Create a [Neptune](https://neptune.ai/) account and project.
+2. Edit the [NEPTUNE_API_TOKEN] and [NEPTUNE_NAME] fields in the .env file.
+
+
 ### Multirun
 Do grid search over different configs.
 ```

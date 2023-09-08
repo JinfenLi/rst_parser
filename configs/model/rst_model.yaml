@@ -19,8 +19,7 @@ exp_id: null
 
 measure_attrs_runtime: False
 
-max_length: 20
-#glove_file: https://embs.s3.us-east-2.amazonaws.com/glove.pkl
+max_length: 60
 elmo_dim: 256
 glove_dim: 300
 

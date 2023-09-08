@@ -1,0 +1,10 @@
+_target_: rst_parser.utils.logging.get_neptune_logger
+
+logger: neptune
+
+tag_attrs: 
+  - ${data.dataset}
+  - "max_length=${model.max_length}"
+  - "blstm_hidden_size=${model.blstm_hidden_size}"
+
+offline: False
