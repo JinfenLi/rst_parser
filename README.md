@@ -249,7 +249,7 @@ python main.py -m \
     setup.mini_batch_size=10 \
     setup.num_workers=3 \
     seed=0,1,2
-···
+```
 
 ### 4. Evaluate Model
 exp_id is the folder name under your save_dir (e.g., "rst_dt_xxx"), ckpt_path is the checkpoint under the checkpoints folder in the exp_id folder.
