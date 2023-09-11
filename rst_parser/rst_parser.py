@@ -15,6 +15,7 @@ from .data.data import DataModule
 from .model.rst_model import RSTModel
 from .utils.rst_tree.edu_segmenter import EDUSegmenter
 from .utils.rst_tree.processor import RSTPreprocessor, RSTPostprocessor
+from .utils.rst_tree.data_utils import get_glove_dict
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -30,11 +31,14 @@ def get_configuration():
 
         with tarfile.open(os.path.join(cache_dir, "rst-parser.tar.gz"), 'r:gz') as tar:
             tar.extractall(path=cache_dir)
+
     with open(os.path.join(cache_dir, "rst-parser", 'config.yaml'), 'r') as f:
         config = yaml.safe_load(f)
 
+    glove_dict = get_glove_dict()
+
     ckpt_path = os.path.join(cache_dir, "rst-parser", 'pytorch_model.ckpt')
-    return config, ckpt_path
+    return config, ckpt_path, glove_dict
 
 
 def load_checkpoint(model, ckpt_path):
@@ -58,16 +62,17 @@ def parse(texts: list):
 
     """
 
-    config, ckpt_path = get_configuration()
+    config, ckpt_path, glove_dict = get_configuration()
     assert isinstance(texts, list), "input must be a list of texts"
     max_length = config['max_length']
     arch = config['arch']
 
     tokenizer = AutoTokenizer.from_pretrained(arch, strip_accents=False)
-    rst_preprocessor = RSTPreprocessor(tokenizer, max_length)
+    rst_preprocessor = RSTPreprocessor(tokenizer, glove_dict, max_length)
     dataset_dict = collections.defaultdict(list)
     edu_segmenter = EDUSegmenter(cache_dir)
     tokenized_sentences, end_boundaries = edu_segmenter(texts)
+    edu_text_list = []
     for i, doc in enumerate(texts):
         sentence = tokenized_sentences[i]
         boundaries = end_boundaries[i]
@@ -79,20 +84,26 @@ def parse(texts: list):
 
         if len(edus) < 2:
             raise ValueError(f"Document {i} has less than 2 EDUs")
+        edu_text_list.append(edus)
         features = collections.defaultdict(list)
         for edu in edus:
-            input_ids, attention_mask = rst_preprocessor.process_edus(edu)
+            input_ids, attention_mask, glove_embs, character_ids = rst_preprocessor.process_edus(edu)
             features['edu_input_ids'].append(input_ids)
             features['edu_attention_masks'].append(attention_mask)
+            features['glove_embs'].append(glove_embs)
+            features['character_ids'].append(character_ids)
         dataset_dict['item_idx'].append(i)
         dataset_dict['edu_input_ids'].append(features['edu_input_ids'])
         dataset_dict['edu_attention_masks'].append(features['edu_attention_masks'])
+        dataset_dict['glove_embs'].append(features['glove_embs'])
+        dataset_dict['character_ids'].append(features['character_ids'])
 
     dm = DataModule()
     dm.setup(dataset=dataset_dict)
     loader = dm.predict_dataloader()
 
     model = RSTModel()
+    logger.info(f"Loading checkpoint from {ckpt_path} ...")
     model = load_checkpoint(model, ckpt_path)
 
     trainer = Trainer(logger=False)
@@ -100,10 +111,10 @@ def parse(texts: list):
     test_results = trainer.lightning_module.results
     dis_results = []
     tree_results = []
-    for input_ids, prediction in zip(test_results['input_ids'], test_results['predictions']):
+    for input_ids, prediction, edu_texts in zip(test_results['input_ids'], test_results['predictions'], edu_text_list):
         rst_postprocessor = RSTPostprocessor(tokenizer)
         prediction = prediction.tolist()
-        tree = rst_postprocessor.encode_tree(input_ids, prediction)
+        tree = rst_postprocessor.encode_tree(input_ids, prediction, edu_texts)
         tree_results.append(tree)
         rst_postprocessor.decode_tree(tree)
         dis_results.append(rst_postprocessor.dis_file)

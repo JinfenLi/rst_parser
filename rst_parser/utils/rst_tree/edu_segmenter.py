@@ -6,6 +6,8 @@ import os
 import logging
 
 from sgnlp.models.rst_pointer import RstPointerSegmenterConfig, RstPointerSegmenterModel, RstPreprocessor
+
+logging.basicConfig()
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -16,6 +18,7 @@ class EDUSegmenter(object):
         segment_path_to_exist = os.path.join(cache_dir, "segmenter")
         os.makedirs(segment_path_to_exist, exist_ok=True)
         if not os.path.exists(os.path.join(segment_path_to_exist, "config.json")):
+            logger.info(f"downloading EDU Segmenter config to {segment_path_to_exist}")
             segmenter_config = RstPointerSegmenterConfig.from_pretrained(
                 'https://storage.googleapis.com/sgnlp-models/models/rst_pointer/segmenter/config.json',
                 cache_dir=segment_path_to_exist)
@@ -25,7 +28,7 @@ class EDUSegmenter(object):
             segmenter_config = RstPointerSegmenterConfig.from_pretrained(
                 os.path.join(segment_path_to_exist, "config.json"))
         if not os.path.exists(os.path.join(segment_path_to_exist, "pytorch_model.bin")):
-
+            logger.info(f"downloading EDU Segmenter model to {segment_path_to_exist}")
             segmenter = RstPointerSegmenterModel.from_pretrained(
                 'https://storage.googleapis.com/sgnlp-models/models/rst_pointer/segmenter/pytorch_model.bin',
                 config=segmenter_config, cache_dir=segment_path_to_exist)

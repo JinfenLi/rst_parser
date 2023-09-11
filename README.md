@@ -29,7 +29,7 @@ pip install rst-parser
 use pip package
 ```
 from rst_parser import rst_parser
-tree_results, dis_results = rst_parser.parse(["Thumbs began to be troublesome about 4 months ago and I made an appointment with the best hand surgeon in the Valley to see if my working activities were the problem."])
+tree_results, dis_results = rst_parser.parse(["The scientific community is making significant progress in understanding climate change. Researchers have collected vast amounts of data on temperature fluctuations, greenhouse gas emissions, and sea-level rise. This data shows a clear pattern of increasing global temperatures over the past century. However, there are still debates about the causes and consequences of climate change."])
 ```
 
 tree_results explanation
@@ -50,13 +50,13 @@ each tree in the tree_results is the binary tree with the following node attribu
 dis_results explanation
 ```
 ( Root (span 1 4)
-  ( Nucleus (leaf 1) (rel2par span) (text _!thumbs began to be troublesome about 4 months ago!_) )
-  ( Satellite (span 2 4) (rel2par Summary)
-    ( Nucleus (leaf 2) (rel2par span) (text _!and i made an appointment with the best hand surgeon in the valley!_) )
-    ( Satellite (span 3 4) (rel2par Condition)
-      ( Nucleus (leaf 3) (rel2par span) (text _!to see!_) )
-      ( Satellite (leaf 4) (rel2par Contrast) (text _!if my working activities were the problem.!_) )
-    )
+  ( Nucleus (span 1 2) (rel2par span)
+    ( Nucleus (leaf 1) (rel2par span) (text _!The scientific community is making significant progress!_) )
+    ( Satellite (leaf 2) (rel2par Elaboration) (text _!in understanding climate change .!_) )
+  )
+  ( Satellite (span 3 4) (rel2par Elaboration)
+    ( Nucleus (leaf 3) (rel2par span) (text _!Researchers have collected vast amounts of data on temperature fluctuations , greenhouse gas emissions , and sea-level rise .!_) )
+    ( Satellite (leaf 4) (rel2par Contrast) (text _!This data shows a clear pattern of increasing global temperatures over the past century . However , there are still debates about the causes and consequences of climate change .!_) )
   )
 )
 ```
@@ -153,7 +153,7 @@ The commands below are used to build pre-processed datasets, saved as pickle fil
 Remember to put a xxx.yaml file in the configs/dataset folder for the dataset you want to build. 
 ```
 python scripts/build_dataset.py --data_dir data \
-    --dataset rst_dt --arch bert-base-uncased --split train
+    --dataset rst_dt --arch bert-base-uncased --max_length 32 --split train
 
 python scripts/build_dataset.py --data_dir data \
     --dataset rst_dt --arch bert-base-uncased --split dev

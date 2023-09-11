@@ -125,22 +125,18 @@ class EDUDataset(Dataset):
         return len(self.data['input_ids'])
 
     def __getitem__(self, idx):
-        # item_idx = torch.LongTensor([self.data['item_idx'][idx]])
         input_ids = self.data['input_ids'][idx]
         attention_mask = self.data['attention_mask'][idx]
-        glove_embs = self.data['glove_embs'][idx]
-        character_ids = self.data['character_ids'][idx]
+        glove_embs = self.data['glove_embs'][idx] if 'glove_embs' in self.data else None
+        character_ids = self.data['character_ids'][idx] if 'character_ids' in self.data else None
         result_tuple = (input_ids, attention_mask, glove_embs, character_ids)
         return result_tuple
     def collater(self, items):
         batch = {
-            # 'item_idx': torch.cat([x[0] for x in items]),
             'input_ids': torch.stack([x[0] for x in items], dim=0),
             'attention_mask': torch.stack([x[1] for x in items], dim=0),
-            'glove_embs': torch.stack([x[2] for x in items], dim=0),
-            'character_ids': torch.stack([x[3] for x in items], dim=0),
-            # 'split': self.split,
-            # 'mini_batch_size': self.mini_batch_size,
+            'glove_embs': torch.stack([x[2] for x in items], dim=0) if items[0][2] is not None else None,
+            'character_ids': torch.stack([x[3] for x in items], dim=0) if items[0][3] is not None else None,
         }
 
         return batch

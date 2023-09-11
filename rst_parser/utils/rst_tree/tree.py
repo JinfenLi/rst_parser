@@ -2,16 +2,8 @@
     author: Jinfen Li
     GitHub: https://github.com/LiJinfen
 """
-import sys
-# from utils.document import Doc
-# from utils.span import SpanNode
-
-import sys
 from typing import List
-
 from rst_parser.utils.rst_tree.span import SpanNode
-
-
 
 
 class RstTree(object):
@@ -113,7 +105,6 @@ class RstTree(object):
             else:
                 # else, keep push into the stack
                 stack.append(token)
-        # print(stack)
         return stack[-1]
 
 
@@ -157,7 +148,7 @@ class RstTree(object):
     def postorder_DFT(self, tree, node_list, action_list, span_list, relation_list, nuclearity_list, edu_texts):
         """ Post order traversal on binary RST tree
         :type tree: SpanNode instance
-        :param tree: an binary RST tree
+        :param tree: a binary RST tree
         :type node_list: list
         :param node_list: list of node in post order
         """

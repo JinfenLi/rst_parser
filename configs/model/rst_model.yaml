@@ -19,14 +19,17 @@ exp_id: null
 
 measure_attrs_runtime: False
 
-max_length: 60
-elmo_dim: 256
+max_length: 20
 glove_dim: 300
 
 blstm_hidden_size: 200
-rnn_layers: 1
+rnn_layers: 2
 dropout: 0.2
 
 num_action_classes: 2
 num_nuclearity_classes: 3
 num_relation_classes: 18
+
+edu_encoder_arch: elmo
+use_glove: True
+pooler: partial

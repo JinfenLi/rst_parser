@@ -49,12 +49,12 @@ def main():
     assert args.split is not None and args.arch is not None
     assert args.num_samples is None or args.num_samples >= 1
     num_examples = args.num_samples
-    if args.dataset != 'new_data':
+    max_length = args.max_length
+    if max_length is None:
+        if args.dataset != 'new_data':
 
-        max_length = dataset_info[args.dataset]['max_length'][args.arch]
-    else:
-        args.split = 'test'
-        max_length = 20
+            max_length = dataset_info[args.dataset]['max_length'][args.arch]
+
 
     tokenizer = AutoTokenizer.from_pretrained(args.arch, strip_accents=False)
     glove_dict = get_glove_dict()
@@ -92,10 +92,13 @@ def main():
     elif args.dataset == 'new_data':
         with open("data/new_data/txt_files/doc.txt", 'r') as f:
             doc = f.read()
-        cache_dir = os.path.join("../rst_parser", "segmenter")
+        if not os.path.exists(os.path.join(os.path.dirname(os.path.dirname(__file__)), "rst_parser", "model_dependencies")):
+            os.makedirs(os.path.join(os.path.dirname(os.path.dirname(__file__)), "rst_parser", "model_dependencies"))
+        cache_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "rst_parser", "model_dependencies")
+
         edu_segmenter = EDUSegmenter(cache_dir)
         tokenized_sentences, end_boundaries = edu_segmenter([doc])
-        rst_preprocessor = RSTPreprocessor(tokenizer, max_length)
+        rst_preprocessor = RSTPreprocessor(tokenizer, glove_dict, max_length)
         for i, doc in enumerate([doc]):
             sentence = tokenized_sentences[i]
             boundaries = end_boundaries[i]
@@ -109,12 +112,16 @@ def main():
                 raise ValueError(f"Document {i} has less than 2 EDUs")
             features = collections.defaultdict(list)
             for edu in edus:
-                input_ids, attention_mask = rst_preprocessor.process_edus(edu)
+                input_ids, attention_mask, glove_embs, character_ids = rst_preprocessor.process_edus(edu)
                 features['edu_input_ids'].append(input_ids)
                 features['edu_attention_masks'].append(attention_mask)
+                features['glove_embs'].append(glove_embs)
+                features['character_ids'].append(character_ids)
             dataset_dict['item_idx'].append(i)
             dataset_dict['edu_input_ids'].append(features['edu_input_ids'])
             dataset_dict['edu_attention_masks'].append(features['edu_attention_masks'])
+            dataset_dict['glove_embs'].append(features['glove_embs'])
+            dataset_dict['character_ids'].append(features['character_ids'])
 
     save_datadict(data_path, dataset_dict, args.split, args.num_samples, args.seed)
 
@@ -124,14 +131,14 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Dataset preprocessing')
     parser.add_argument('--data_dir', type=str, default='data/', help='Root directory for datasets')
-    # parser.add_argument('--resource_dir', type=str, default='resources/', help='Root directory for resources')
-    parser.add_argument('--dataset', type=str, default='rst_dt',
+    parser.add_argument('--dataset', type=str, default='new_data',
                         choices=['new_data', 'rst_dt'])
     parser.add_argument('--arch', type=str, default='bert-base-uncased',
                         help='pretrained model name')
     parser.add_argument('--seg_model', type=str, default='bert_uncased', help='Segmentation model',
                         choices=['bert_uncased', 'bert_cased', 'bart'])
     parser.add_argument('--split', type=str, default='test', help='Dataset split', choices=['train', 'dev', 'test'])
+    parser.add_argument('--max_length', type=int, default=32, help='Maximum sequence length')
     parser.add_argument('--stratified_sampling', type=bool, default=False, help='Whether to use stratified sampling')
     parser.add_argument('--num_samples', type=int, default=None,
                         help='Number of examples to sample. None means all available examples are used.')

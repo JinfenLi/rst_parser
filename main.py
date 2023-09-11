@@ -31,6 +31,17 @@ from rst_parser.utils.data import dataset_info, monitor_dict
 from rst_parser.utils.logging import get_logger, log_hyperparameters
 from rst_parser.utils.callbacks import BestPerformance
 
+from dotenv import load_dotenv
+
+load_dotenv(override=True)
+
+API_LIST = {
+    "neptune": {
+        'api-key': os.environ.get('NEPTUNE_API_TOKEN'),
+        'name': os.environ.get('NEPTUNE_NAME'),
+    },
+}
+
 def get_callbacks(cfg: DictConfig):
 
     monitor = monitor_dict[cfg.data.dataset]
@@ -126,9 +137,9 @@ def build(cfg) -> Tuple[LightningDataModule, LightningModule, Trainer]:
 
 
     with open_dict(cfg):
-        if (not (cfg.debug or cfg.logger.offline)) and cfg.logger.logger == "neptune":
+        if (not (cfg.debug or cfg.logger.offline or cfg.training.evaluate_ckpt)) and cfg.logger.logger == "neptune":
             cfg.paths.save_dir = os.path.join(cfg.paths.save_dir,
-                                              f'{cfg.data.dataset}_{run_logger.version}')
+                                              f'{cfg.data.dataset}_{run_logger.version}' if run_logger.version else offline_dir)
 
     if not cfg.training.evaluate_ckpt:
 
@@ -211,7 +222,7 @@ def run(cfg: DictConfig) -> Optional[float]:
         logger.info(f"Loaded checkpoint for evaluation from {cfg.training.ckpt_path}")
         # model = restore_config_params(model, config, cfg)
         model.exp_id = cfg.training.exp_id
-        model.save_outputs = True
+        model.save_outputs = cfg.model.save_outputs
         print('Evaluating loaded model checkpoint...')
         for split in cfg.training.eval_splits.split(','):
             print(f'Evaluating on split: {split}')

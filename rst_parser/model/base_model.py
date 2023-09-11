@@ -1,15 +1,12 @@
 from typing import Optional
 from lightning import LightningModule
 import torch
-
-# from ..utils.logging import log_epoch_metrics
 from ..utils.optim import freeze_net, unfreeze_net
 
 
 class BaseModel(LightningModule):
     def __init__(self):
         super().__init__()
-        # update in `setup`
         self.total_steps = None
         self.training_step_outputs = []
         self.validation_step_outputs = [[], []]
@@ -51,9 +48,7 @@ class BaseModel(LightningModule):
             freeze_net(self.edu_encoder)
         else:
             unfreeze_net(self.edu_encoder)
-        # print("training step")
         ret_dict = self.run_step(batch, 'train', batch_idx)
-        # loss = ret_dict['loss']
         self.training_step_outputs.append(ret_dict)
         return ret_dict
 
@@ -64,7 +59,6 @@ class BaseModel(LightningModule):
         self.training_step_outputs.clear()
 
     def validation_step(self, batch, batch_idx, dataloader_idx=0):
-        # print("validation_step step")
         assert dataloader_idx in [0, 1]
         eval_splits = {0: 'dev', 1: 'test'}
         ret_dict = self.run_step(batch, eval_splits[dataloader_idx], batch_idx)
@@ -75,8 +69,6 @@ class BaseModel(LightningModule):
     def on_validation_epoch_end(self):
         for dl_idx in range(len(self.validation_step_outputs)):
             validation_step_outputs = self.collater(self.validation_step_outputs[dl_idx])
-            # log_step_metrics(self, ret_dict, eval_splits[dataloader_idx])
-            # log_epoch_metrics(self, validation_step_outputs, validation_step_outputs['eval_split'][0])  # Log epoch metrics
             self.aggregate_epoch(validation_step_outputs, 'dev')
             self.validation_step_outputs[dl_idx].clear()
 
@@ -113,8 +105,6 @@ class BaseModel(LightningModule):
         test_step_outputs = self.collater(self.test_step_outputs)
         self.aggregate_epoch(test_step_outputs, 'test')
         self.test_step_outputs.clear()
-        # self.results = results
-        # return results
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
         self.predict_step_outputs.append(self.run_step(batch, 'pred', batch_idx))
@@ -130,15 +120,13 @@ class BaseModel(LightningModule):
     def setup(self, stage: Optional[str] = None):
         """calculate total steps"""
         if stage == 'fit':
-            # Get train dataloader
             train_loader = self.trainer.datamodule.train_dataloader()
             ngpus = self.trainer.num_devices
 
             # Calculate total steps
             eff_train_batch_size = (self.trainer.datamodule.train_batch_size *
                                     max(1, ngpus) * self.trainer.accumulate_grad_batches)
-            # assert eff_train_batch_size == self.trainer.datamodule.eff_train_batch_size
-            train_loader_list = list(train_loader)
+
             self.total_steps = int(
                 (len(train_loader.dataset) // eff_train_batch_size) * float(self.trainer.max_epochs))
 

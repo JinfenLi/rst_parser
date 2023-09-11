@@ -8,3 +8,5 @@ tag_attrs:
   - "blstm_hidden_size=${model.blstm_hidden_size}"
 
 offline: False
+NEPTUNE_API_TOKEN: ${oc.env:NEPTUNE_API_TOKEN}
+NEPTUNE_NAME: ${oc.env:NEPTUNE_NAME}

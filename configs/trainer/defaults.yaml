@@ -1,6 +1,7 @@
 _target_: lightning.pytorch.trainer.Trainer
 
 strategy: auto
+#strategy: ddp_find_unused_parameters_true
 # default values for all trainer parameters
 #checkpoint_callback: True
 default_root_dir: null

@@ -71,6 +71,7 @@ class RSTPreprocessor(object):
         input_ids = encode_dict['input_ids']
         attention_masks = encode_dict['attention_mask']
 
+
         if len(input_ids) > self.max_length:
             input_ids = input_ids[: self.max_length]
             attention_masks = attention_masks[: self.max_length]
@@ -105,12 +106,12 @@ class RSTPostprocessor(object):
         self.tokenizer = tokenizer
         self.dis_file = ''
 
-    def encode_tree(self, input_ids, predictions):
-
-        edu_texts = []
-        for i in range(len(input_ids)):
-            edu = self.tokenizer.decode(input_ids[i, :], skip_special_tokens=True)
-            edu_texts.append(edu)
+    def encode_tree(self, input_ids, predictions, edu_texts=None):
+        if edu_texts is None:
+            edu_texts = []
+            for i in range(len(input_ids)):
+                edu = self.tokenizer.decode(input_ids[i, :], skip_special_tokens=True)
+                edu_texts.append(edu)
         # store nodes
         cur_eid = 1
         stack = []

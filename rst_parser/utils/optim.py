@@ -48,27 +48,17 @@ def unfreeze_net(module):
         p.requires_grad = True
 
 def freeze_layers(model, num_freeze_layers):
-    if model.arch == 'google/bigbird-roberta-base':
-        assert model.task_encoder is not None
+    if model.arch == 'bert-base-uncased':
+        assert model.edu_encoder is not None
 
         # Freeze task encoder's embedding layer
-        for p in model.task_encoder.embeddings.parameters():
+        for p in model.edu_encoder.embeddings.parameters():
             p.requires_grad = False
 
         # Freeze task encoder's encoder layers
         for i in range(num_freeze_layers):
-            for p in model.task_encoder.encoder.layer[i].parameters():
+            for p in model.edu_encoder.encoder.layer[i].parameters():
                 p.requires_grad = False
-
-        if model.expl_encoder is not None:
-            # Freeze expl encoder's embedding layer
-            for p in model.expl_encoder.embeddings.parameters():
-                p.requires_grad = False
-
-            # Freeze expl encoder's encoder layers
-            for i in range(num_freeze_layers):
-                for p in model.expl_encoder.encoder.layer[i].parameters():
-                    p.requires_grad = False
 
     else:
         raise NotImplementedError

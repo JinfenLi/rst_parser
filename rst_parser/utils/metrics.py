@@ -1,12 +1,8 @@
 import torch
 from torch import Tensor
-from torchmetrics.classification import BinaryAccuracy, BinaryF1Score
-from torchmetrics import Accuracy
 
 from torchmetrics import Metric
 
-# metric_keys = ['span_precision', 'span_recall', 'span_f1', 'nuc_precision', 'nuc_recall', 'nuc_f1', 'rel_precision',
-#                'rel_recall', 'rel_f1', 'mean_f1']
 metric_keys = ['span_f1', 'nuc_f1', 'rel_f1']
 class RSTMetric(Metric):
     def __init__(self):
@@ -24,7 +20,6 @@ class RSTMetric(Metric):
         self.add_state("total", default=torch.tensor(0), dist_reduce_fx="sum")
 
     def update(self, preds: Tensor, target: Tensor):
-        # preds, target = self._input_format(preds, target)
 
         assert preds.shape == target.shape
         span_preds = preds[:, :2]
@@ -33,35 +28,19 @@ class RSTMetric(Metric):
         nuc_target = target[:, :3]
         rel_preds = torch.cat((preds[:, :2], preds[:, [3]]), dim=1)
         rel_target = torch.cat((target[:, :2], target[:, [3]]), dim=1)
-        span_precision = torch.sum(torch.tensor(span_preds == span_target).all(dim=1)) / len(preds)
-        span_recall = torch.sum(torch.tensor(span_preds == span_target).all(dim=1)) / len(target)
-        # print(span_precision)
-        # print(span_recall)
-        self.span_precision += span_precision
-        self.span_recall += span_recall
-        self.span_f1 += 2 * span_precision * span_recall / (span_precision + span_recall) if (span_precision + span_recall) > 0 else 0
+        span_precision, span_recall = hit(span_preds, span_target)
+        self.span_f1 += 2 * span_precision * span_recall / (span_precision + span_recall) if (span_precision + span_recall) > 0 else 0.0
 
-        nuc_precision = torch.sum(torch.tensor(nuc_preds == nuc_target).all(dim=1)) / len(preds)
-        nuc_recall = torch.sum(torch.tensor(nuc_preds == nuc_target).all(dim=1)) / len(target)
-        self.nuc_precision += nuc_precision
-        self.nuc_recall += nuc_recall
-        self.nuc_f1 += 2 * nuc_precision * nuc_recall / (nuc_precision + nuc_recall) if (nuc_precision + nuc_recall) > 0 else 0
+        nuc_precision, nuc_recall = hit(nuc_preds, nuc_target)
+        self.nuc_f1 += 2 * nuc_precision * nuc_recall / (nuc_precision + nuc_recall) if (nuc_precision + nuc_recall) > 0 else 0.0
 
-        rel_precision = torch.sum((rel_preds == rel_target).all(dim=1)) / len(preds)
-        rel_recall = torch.sum((rel_preds == rel_target).all(dim=1)) / len(target)
-        self.rel_precision += rel_precision
-        self.rel_recall += rel_recall
-        self.rel_f1 += 2 * rel_precision * rel_recall / (rel_precision + rel_recall) if (rel_precision + rel_recall) > 0 else 0
-
-        # self.mean_f1 += (self.span_f1 + self.nuc_f1 + self.rel_f1) / 3
+        rel_precision, rel_recall = hit(rel_preds, rel_target)
+        self.rel_f1 += 2 * rel_precision * rel_recall / (rel_precision + rel_recall) if (rel_precision + rel_recall) > 0 else 0.0
 
         self.total += 1
 
     def compute(self):
 
-        # return self.span_precision.float()/self.total, self.span_recall.float()/self.total, self.span_f1.float()/self.total, \
-        #  self.nuc_precision.float()/self.total, self.nuc_recall.float()/self.total, self.nuc_f1.float()/self.total, \
-        #     self.rel_precision.float()/self.total, self.rel_recall.float()/self.total, self.rel_f1.float()/self.total
         return self.span_f1.float()/self.total, self.nuc_f1.float()/self.total, self.rel_f1.float()/self.total
 
 
@@ -82,6 +61,13 @@ def init_perf_metrics():
 
     return perf_metrics
 
+def hit(preds: Tensor, target: Tensor):
+    preds_list = preds.tolist()
+    target_list = target.tolist()
+    precision_hit_count = [pred for pred in preds_list if pred in target_list]
+    recall_hit_count = [target for target in target_list if target in preds_list]
+    return len(precision_hit_count)/len(preds) if len(precision_hit_count) > 0 else 0.0, len(recall_hit_count)/len(target) if len(recall_hit_count) > 0 else 0.0
+
 
 def calc_f1(preds: Tensor, target: Tensor):
     metric_dict = {}
@@ -92,17 +78,15 @@ def calc_f1(preds: Tensor, target: Tensor):
     rel_preds = torch.cat((preds[:, :2], preds[:, [3]]), dim=1)
     rel_target = torch.cat((target[:, :2], target[:, [3]]), dim=1)
 
-    span_precision = torch.sum((span_preds == span_target).all(dim=1)) / len(preds)
-    span_recall = torch.sum((span_preds == span_target).all(dim=1)) / len(target)
+    span_precision, span_recall = hit(span_preds, span_target)
     span_f1 = 2 * span_precision * span_recall / (span_precision + span_recall) if (span_precision + span_recall) > 0 else 0.0
 
-    nuc_precision = torch.sum((nuc_preds == nuc_target).all(dim=1)) / len(preds)
-    nuc_recall = torch.sum((nuc_preds == nuc_target).all(dim=1)) / len(target)
+    nuc_precision, nuc_recall = hit(nuc_preds, nuc_target)
     nuc_f1 = 2 * nuc_precision * nuc_recall / (nuc_precision + nuc_recall) if (nuc_precision + nuc_recall) > 0 else 0.0
 
-    rel_precision = torch.sum((rel_preds == rel_target).all(dim=1)) / len(preds)
-    rel_recall = torch.sum((rel_preds == rel_target).all(dim=1)) / len(target)
+    rel_precision, rel_recall = hit(rel_preds, rel_target)
     rel_f1 = 2 * rel_precision * rel_recall / (rel_precision + rel_recall) if (rel_precision + rel_recall) > 0 else 0.0
+
     metric_dict['span_f1'] = torch.tensor(span_f1) * 100
     metric_dict['nuc_f1'] = torch.tensor(nuc_f1) * 100
     metric_dict['rel_f1'] = torch.tensor(rel_f1) * 100
@@ -115,10 +99,7 @@ def get_step_metrics(preds, targets, metrics):
     for key, metric_fn in metrics.items():
         for p, t in zip(preds, targets):
             metric_fn(p, t)
-    #     perf = metric_fn(preds, targets)
-    #     for i, metric in enumerate(metric_keys):
-    #         res.update({metric: perf[i] * 100})
-    # return res
+
 
 def get_epoch_metrics(metrics):
     res = {}

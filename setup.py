@@ -9,7 +9,7 @@ with open("README.md") as f:
 setup(
 
     name="rst_parser",
-    version='0.1.0',
+    version='0.1.3',
     description="A package for RST parsing",
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -22,9 +22,10 @@ setup(
     ],
     url="https://github.com/JinfenLi/rst_parser",
     license="MIT",
-    install_requires=["allennlp", "lightning>=2","torch>=2",
-                      "numpy", "pandas", "rich", "spacy", "torchmetrics>=1",
-                      "transformers==4.31.0", "neptune>=1.0"],
+    dependency_links=["https://download.pytorch.org/whl/cu118"],
+    install_requires=["allennlp", "lightning>=2",
+                      "numpy", "pandas", "rich", "torchmetrics>=1",
+                      "transformers", "neptune>=1.0"],
     packages=find_packages(),
 
 

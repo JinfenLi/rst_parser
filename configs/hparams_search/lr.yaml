@@ -3,7 +3,7 @@
 defaults:
   - override /hydra/sweeper: optuna
 
-tune_metric: "dev_acc_epoch"
+tune_metric: "dev_span_f1_epoch"
 
 hydra:
   sweeper:

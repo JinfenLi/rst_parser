@@ -1,21 +1,11 @@
-import getpass, socket
-import os
-from typing import Any, List
+import getpass
+from typing import Any
 import torch
 from lightning_utilities.core.rank_zero import rank_zero_only
 from lightning.pytorch.loggers import CSVLogger, NeptuneLogger
 from ..utils.metrics import get_step_metrics, get_epoch_metrics, metric_keys
 import logging
-from dotenv import load_dotenv
 
-load_dotenv(override=True)
-
-API_LIST = {
-    "neptune": {
-        'api-key': os.environ.get('NEPTUNE_API_TOKEN'),
-        'name': os.environ.get('NEPTUNE_NAME'),
-    },
-}
 
 
 log = logging.getLogger(__name__)
@@ -54,15 +44,10 @@ def get_csv_logger(
 def get_neptune_logger(
     cfg, logger,
     tag_attrs,
-    offline,
+    offline, NEPTUNE_API_TOKEN, NEPTUNE_NAME
 ):
-    neptune_api_key = API_LIST["neptune"]["api-key"]
-    name = API_LIST["neptune"]["name"]
-    # flatten cfg
-    # args_dict = {
-    #     **flatten_cfg(OmegaConf.to_object(cfg)),
-    #     "hostname": socket.gethostname()
-    # }
+    neptune_api_key = NEPTUNE_API_TOKEN
+    name = NEPTUNE_NAME
     tags = list(tag_attrs)
 
 
@@ -70,8 +55,6 @@ def get_neptune_logger(
     neptune_logger = NeptuneLogger(
         api_key=neptune_api_key,
         project=name,
-        # name="Prediction model",
-        # params=args_dict,
         tags=tags
     )
 
@@ -99,9 +82,6 @@ def log_step_losses(model_class, loss_dict, ret_dict, split):
     return ret_dict
 
 def log_step_metrics(model_class, metric_dict, split):
-    # predictions = ret_dict['predictions']
-    # targets = ret_dict['targets']
-    # ret_dict = get_step_metrics(predictions, targets, model_class.perf_metrics)
     for key in metric_keys:
         metric_dict = log_data_to_model(model_class, metric_dict[key], key, 'metric', 'step', split, metric_dict)
     return metric_dict

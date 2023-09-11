@@ -12,7 +12,11 @@ import numpy as np
 import torch
 from tqdm import tqdm
 
-cache_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'model_dependencies')
+logging.basicConfig()
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+cache_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'model_dependencies', 'rst-parser')
 os.makedirs(cache_dir, exist_ok=True)
 def stratified_sampling(data, num_samples):
     num_instances = len(data)
@@ -64,7 +68,8 @@ def save_datadict(data_path, dataset_dict, split, num_samples, seed):
 
 def get_glove_dict():
     if not os.path.exists(os.path.join(cache_dir, 'glove.pkl')):
-        logging.info("Downloading GloVe embeddings...")
+        logger.info('Downloading GloVe embeddings...')
+
         torch.hub.download_url_to_file("https://embs.s3.us-east-2.amazonaws.com/glove.pkl", os.path.join(cache_dir, 'glove.pkl'))
     with open(os.path.join(cache_dir, 'glove.pkl'), 'rb') as f:
         glove_dict = pickle.load(f)
