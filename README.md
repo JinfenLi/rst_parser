@@ -111,7 +111,7 @@ python main.py \
 ### Offline Mode
 In offline mode, results are not logged to Neptune.
 ```
-python main.py logger.offline=True
+python main.py logger=neptune logger.offline=True
 ```
 
 ### Debug Mode
@@ -153,20 +153,20 @@ The commands below are used to build pre-processed datasets, saved as pickle fil
 Remember to put a xxx.yaml file in the configs/dataset folder for the dataset you want to build. 
 ```
 python scripts/build_dataset.py --data_dir data \
-    --dataset rst_dt --arch bert-base-uncased --max_length 32 --split train
+    --dataset rst_dt --arch bert-base-uncased --max_length 20 --split train
 
 python scripts/build_dataset.py --data_dir data \
-    --dataset rst_dt --arch bert-base-uncased --split dev
+    --dataset rst_dt --arch bert-base-uncased --max_length 20 --split dev
 
 python scripts/build_dataset.py --data_dir data \
-    --dataset rst_dt --arch bert-base-uncased --split test
+    --dataset rst_dt --arch bert-base-uncased --max_length 20 --split test
 
 ```
 
 If the dataset is very large, you have the option to subsample part of the dataset for smaller-scale experiements. For example, in the command below, we build a train set with only 1000 train examples (sampled with seed 0).
 ```
 python scripts/build_dataset.py --data_dir data \
-    --dataset rst_dt --arch bert-base-uncased --split train \
+    --dataset rst_dt --arch bert-base-uncased --max_length 20 --split train \
     --num_samples 10 --seed 0
 ```
 
@@ -204,6 +204,52 @@ python main.py -m \
     setup.num_workers=3 \
     seed=0,1,2
 ```
+**Use Glove Embedding**
+```
+python main.py -m \
+    data=rst_dt \
+    model.blstm_hidden_size=300 \
+    model.optimizer.lr=2e-5 \
+    model.use_glove=True \
+    setup.train_batch_size=1 \
+    setup.accumulate_grad_batches=1 \
+    setup.eff_train_batch_size=1 \
+    setup.eval_batch_size=1 \
+    setup.mini_batch_size=10 \
+    setup.num_workers=3 \
+    seed=0,1,2
+```
+**Use Elmo Large Embedding**
+```
+python main.py -m \
+    data=rst_dt \
+    model.blstm_hidden_size=300 \
+    model.optimizer.lr=2e-5 \
+    model.edu_encoder_arch=elmo \
+    model.embedding.model_size=large \
+    setup.train_batch_size=1 \
+    setup.accumulate_grad_batches=1 \
+    setup.eff_train_batch_size=1 \
+    setup.eval_batch_size=1 \
+    setup.mini_batch_size=10 \
+    setup.num_workers=3 \
+    seed=0,1,2
+```
+**Use BERT Embedding**
+```
+python main.py -m \
+    data=rst_dt \
+    model.blstm_hidden_size=300 \
+    model.optimizer.lr=2e-5 \
+    model.edu_encoder_arch=bert \
+    setup.train_batch_size=1 \
+    setup.accumulate_grad_batches=1 \
+    setup.eff_train_batch_size=1 \
+    setup.eval_batch_size=1 \
+    setup.mini_batch_size=10 \
+    setup.num_workers=3 \
+    seed=0,1,2
+···
 
 ### 4. Evaluate Model
 exp_id is the folder name under your save_dir (e.g., "rst_dt_xxx"), ckpt_path is the checkpoint under the checkpoints folder in the exp_id folder.
