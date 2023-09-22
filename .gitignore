@@ -146,7 +146,8 @@ dmypy.json
 
 # Lightning-Hydra-Template
 configs/local/default.yaml
-/data/
+/data/rst_dt/
+/data/new_data/bert-base-uncased
 /logs/
 /tests/
 .env
